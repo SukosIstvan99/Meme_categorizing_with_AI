@@ -62,4 +62,7 @@ async def on_message(message):
             await message.channel.send(response)
 
 
-bot.run("MTMxNDk3Nzk4NzE3ODkyMjAwNA.GmT9bF.mPhaALz1fCrqhxBWZSwGcbSUs8ky2z_fGdAZtI")
+bot.run("Discord Token")
+
+
+#MTMxNDk3Nzk4NzE3ODkyMjAwNA.GmT9bF.mPhaALz1fCrqhxBWZSwGcbSUs8ky2z_fGdAZtI
