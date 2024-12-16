@@ -1,65 +1,99 @@
 import discord
 from discord.ext import commands
-import clip
+import transformers
 import torch
+import requests
 from PIL import Image
-from responses import get_response
-import torch.nn.functional as F
+from io import BytesIO
 
-
-device = "cuda" if torch.cuda.is_available() else "cpu"
-model, preprocess = clip.load("ViT-B/32", device=device)
-
-
-categories = [
-    "an anti meme that parodies meme culture",
-    "a positive meme that spreads happiness and optimism",
-    "a dark meme that contains edgy or controversial humor"
-]
-text_tokens = clip.tokenize(categories).to(device)
-
-
-intents = discord.Intents.default()
-intents.messages = True
-intents.message_content = True
-
+intents = discord.Intents.all()
+intents.typing = False
+intents.presences = False
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+def load_model():
+    print("Loading model, please wait...")
+
+    try:
+        # Modell betöltése
+        model = transformers.AutoModelForCausalLM.from_pretrained(
+            'mosaicml/mpt-1b-redpajama-200b',
+            trust_remote_code=True,
+            attn_impl='triton'
+        )
+
+        tokenizer = transformers.AutoTokenizer.from_pretrained(
+            "anas-awadalla/mpt-1b-redpajama-200b",
+            trust_remote_code=True
+        )
+
+        print("Model loaded successfully!")
+        return model, tokenizer
+    except Exception as e:
+        print(f"Hiba történt a modell betöltése közben: {str(e)}")
+        return None, None
+
+# Event: when the bot is online
 @bot.event
 async def on_ready():
-    print(f"Bot is ready as {bot.user}")
+    print(f'Bot is online as {bot.user}')
+    await bot.change_presence(activity=discord.Game(name="AI Predikciók"))
 
-@bot.event
-async def on_message(message):
-    if message.attachments:
-        for attachment in message.attachments:
+    # Várakozás, hogy a bot teljesen betöltse az információkat
+    await bot.wait_until_ready()
+    
+    # Ellenőrizzük, hogy a bot az első szerveren van
+    guild = bot.guilds[0]
+    channel = guild.get_channel(1314982323271499776)  # Csatorna ID, amit megadtál
 
-            await attachment.save("temp.jpg")
-            image = preprocess(Image.open("temp.jpg")).unsqueeze(0).to(device)
+    if channel:
+        await channel.send("Szia! Én egy AI alapú Discord bot vagyok. 😊")
+    else:
+        print("Nem található a csatorna.")
+# Parancs: !hello
+@bot.command()
+async def hello(ctx):
+    await ctx.send("Szia! Én egy AI alapú Discord bot vagyok. 😊")
+
+# Parancs: !predict [kép link]
+@bot.command()
+async def predict(ctx, image_url: str):
+    await ctx.send("Feldolgozom a képet... ⏳")
+
+    # Modell és tokenizer betöltése egyszer, ha még nem történt meg
+    if not hasattr(bot, "model"):
+        bot.model, bot.tokenizer = load_model()
+
+    if bot.model is None:
+        await ctx.send("Hiba történt a modell betöltése közben. Kérlek próbáld újra később. ❌")
+        return
+
+    try:
+        # Kép letöltése az URL-ről
+        response = requests.get(image_url)
+        if response.status_code == 200:
+            img = Image.open(BytesIO(response.content))
+
+            # A képfeldolgozás ide jöhet
+            await ctx.send("A képet sikeresen betöltöttem, és a predikció folyamatban van! 🚀")
+        else:
+            await ctx.send("Nem sikerült letölteni a képet. Kérlek, próbálj egy másik URL-t! ❌")
+    except Exception as e:
+        await ctx.send(f"Hiba történt a kép feldolgozása közben: {str(e)}")
 
 
-            with torch.no_grad():
+# Bot indítása
+if __name__ == '__main__':
+    # A saját Discord bot tokened
+    TOKEN = "MTMxNDk3Nzk4NzE3ODkyMjAwNA.GWwtot.GaVzU583834UcC1EXnSG6Mt-_9-qSVPnXz675g"
 
-                image_features = model.encode_image(image).float()
-                image_features = F.normalize(image_features, p=2, dim=-1)
+    try:
+        # Modell előtöltése
+        bot.model, bot.tokenizer = load_model()
+    except Exception as e:
+        print(f"Model betöltési hiba: {e}")
+        exit(1)
 
-
-                text_features = model.encode_text(text_tokens).float()
-                text_features = F.normalize(text_features, p=2, dim=-1)
-
-
-                similarity = image_features @ text_features.T
-                print(f"Nyers hasonlóságok: {similarity.cpu().numpy()}")
-
-
-                probs = similarity.softmax(dim=-1).cpu().numpy()
-
-
-            print(f"Softmax utáni hasonlóságok: {probs}")
-            category = categories[probs.argmax()]
-            response = get_response(category)
-            await message.channel.send(response)
-
-
-bot.run("MTMxNDk3Nzk4NzE3ODkyMjAwNA.Gt518x.jMuJK-e8A7jbQxzVD645ThMCe13wLQ4mxCE7cY")
+    # Bot futtatása
+    bot.run(TOKEN)
