@@ -13,3 +13,4 @@ if __name__ == "__main__":
     dataset = load_dataset()
     print("Kategóriák:", dataset.classes)
     print(f"Adatok száma: {len(dataset)}")
+#
