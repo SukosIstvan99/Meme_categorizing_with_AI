@@ -1,7 +1,19 @@
-responses = {
-     "Positive meme,",
-    "Dark meme,"
-}
-
 def get_response(category):
-    return responses.get(category, "Ezt meg te sem érted.")
+    """Válaszok visszaadása a mém kategóriájának megfelelően."""
+    
+    if category == "positive meme":
+        return (
+            "Szép volt kedves voltal bravo. 😊"
+        )
+    
+    elif category == "negative meme":
+        return (
+            "Állj le a szerrel😒"
+            
+        )
+    
+    elif category == "sarcasm meme":
+        return (
+            "Hahaha!!!! Ja nem 🙄"
+        )
+    
